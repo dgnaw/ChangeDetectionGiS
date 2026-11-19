@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WaterLayerGeoJSON",
+  "description": "Schema chuẩn cho lớp đa giác bề mặt nước (EPSG:4326)",
+  "type": "object",
+  "required": ["type", "features"],
+  "properties": {
+    "type": { "const": "FeatureCollection" },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "geometry", "properties"],
+        "properties": {
+          "type": { "const": "Feature" },
+          "geometry": {
+            "type": "object",
+            "required": ["type", "coordinates"],
+            "properties": {
+              "type": { "enum": ["Polygon", "MultiPolygon"] },
+              "coordinates": { "type": "array" }
+            }
+          },
+          "properties": {
+            "type": "object",
+            "required": [
+              "water_id",
+              "year",
+              "area_km2",
+              "perimeter_km",
+              "mean_mndwi",
+              "otsu_threshold",
+              "change_type"
+            ],
+            "properties": {
+              "water_id": { "type": "string" },
+              "year": { "type": "integer", "minimum": 2015, "maximum": 2030 },
+              "area_km2": { "type": "number", "minimum": 0 },
+              "perimeter_km": { "type": "number", "minimum": 0 },
+              "mean_mndwi": { "type": "number", "minimum": -1, "maximum": 1 },
+              "otsu_threshold": { "type": "number", "minimum": -1, "maximum": 1 },
+              "change_type": { "enum": ["stable", "gain", "loss"] }
+            }
+          }
+        }
+      }
+    }
+  }
+}

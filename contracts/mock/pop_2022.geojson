@@ -1,0 +1,461 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.805,
+              21.055
+            ],
+            [
+              105.8074,
+              21.055
+            ],
+            [
+              105.8074,
+              21.0574
+            ],
+            [
+              105.805,
+              21.0574
+            ],
+            [
+              105.805,
+              21.055
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "grid_id": "g_2022_001",
+        "year": 2022,
+        "pop_count": 740.9,
+        "density_per_km2": 11854.4,
+        "in_water_buffer_500m": true,
+        "dist_to_water_m": 140.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.843,
+              21.055
+            ],
+            [
+              105.8454,
+              21.055
+            ],
+            [
+              105.8454,
+              21.0574
+            ],
+            [
+              105.843,
+              21.0574
+            ],
+            [
+              105.843,
+              21.055
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "grid_id": "g_2022_002",
+        "year": 2022,
+        "pop_count": 932.1,
+        "density_per_km2": 14913.6,
+        "in_water_buffer_500m": true,
+        "dist_to_water_m": 110.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.83,
+              21.04
+            ],
+            [
+              105.8324,
+              21.04
+            ],
+            [
+              105.8324,
+              21.0424
+            ],
+            [
+              105.83,
+              21.0424
+            ],
+            [
+              105.83,
+              21.04
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "grid_id": "g_2022_003",
+        "year": 2022,
+        "pop_count": 1063.5,
+        "density_per_km2": 17016.0,
+        "in_water_buffer_500m": true,
+        "dist_to_water_m": 210.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.85,
+              21.075
+            ],
+            [
+              105.8524,
+              21.075
+            ],
+            [
+              105.8524,
+              21.0774
+            ],
+            [
+              105.85,
+              21.0774
+            ],
+            [
+              105.85,
+              21.075
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "grid_id": "g_2022_004",
+        "year": 2022,
+        "pop_count": 490.0,
+        "density_per_km2": 7840.0,
+        "in_water_buffer_500m": true,
+        "dist_to_water_m": 260.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.868,
+              21.052
+            ],
+            [
+              105.8704,
+              21.052
+            ],
+            [
+              105.8704,
+              21.0544
+            ],
+            [
+              105.868,
+              21.0544
+            ],
+            [
+              105.868,
+              21.052
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "grid_id": "g_2022_005",
+        "year": 2022,
+        "pop_count": 645.3,
+        "density_per_km2": 10324.8,
+        "in_water_buffer_500m": true,
+        "dist_to_water_m": 190.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.88,
+              21.04
+            ],
+            [
+              105.8824,
+              21.04
+            ],
+            [
+              105.8824,
+              21.0424
+            ],
+            [
+              105.88,
+              21.0424
+            ],
+            [
+              105.88,
+              21.04
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "grid_id": "g_2022_006",
+        "year": 2022,
+        "pop_count": 729.0,
+        "density_per_km2": 11664.0,
+        "in_water_buffer_500m": true,
+        "dist_to_water_m": 320.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.825,
+              21.115
+            ],
+            [
+              105.8274,
+              21.115
+            ],
+            [
+              105.8274,
+              21.1174
+            ],
+            [
+              105.825,
+              21.1174
+            ],
+            [
+              105.825,
+              21.115
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "grid_id": "g_2022_007",
+        "year": 2022,
+        "pop_count": 370.5,
+        "density_per_km2": 5928.0,
+        "in_water_buffer_500m": true,
+        "dist_to_water_m": 380.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.845,
+              21.125
+            ],
+            [
+              105.8474,
+              21.125
+            ],
+            [
+              105.8474,
+              21.1274
+            ],
+            [
+              105.845,
+              21.1274
+            ],
+            [
+              105.845,
+              21.125
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "grid_id": "g_2022_008",
+        "year": 2022,
+        "pop_count": 346.6,
+        "density_per_km2": 5545.6,
+        "in_water_buffer_500m": true,
+        "dist_to_water_m": 420.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.875,
+              21.085
+            ],
+            [
+              105.8774,
+              21.085
+            ],
+            [
+              105.8774,
+              21.0874
+            ],
+            [
+              105.875,
+              21.0874
+            ],
+            [
+              105.875,
+              21.085
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "grid_id": "g_2022_009",
+        "year": 2022,
+        "pop_count": 537.8,
+        "density_per_km2": 8604.8,
+        "in_water_buffer_500m": false,
+        "dist_to_water_m": 820.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.895,
+              21.095
+            ],
+            [
+              105.8974,
+              21.095
+            ],
+            [
+              105.8974,
+              21.0974
+            ],
+            [
+              105.895,
+              21.0974
+            ],
+            [
+              105.895,
+              21.095
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "grid_id": "g_2022_010",
+        "year": 2022,
+        "pop_count": 466.1,
+        "density_per_km2": 7457.6,
+        "in_water_buffer_500m": false,
+        "dist_to_water_m": 1250.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.855,
+              21.135
+            ],
+            [
+              105.8574,
+              21.135
+            ],
+            [
+              105.8574,
+              21.1374
+            ],
+            [
+              105.855,
+              21.1374
+            ],
+            [
+              105.855,
+              21.135
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "grid_id": "g_2022_011",
+        "year": 2022,
+        "pop_count": 310.7,
+        "density_per_km2": 4971.2,
+        "in_water_buffer_500m": false,
+        "dist_to_water_m": 980.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.795,
+              21.12
+            ],
+            [
+              105.7974,
+              21.12
+            ],
+            [
+              105.7974,
+              21.1224
+            ],
+            [
+              105.795,
+              21.1224
+            ],
+            [
+              105.795,
+              21.12
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "grid_id": "g_2022_012",
+        "year": 2022,
+        "pop_count": 406.3,
+        "density_per_km2": 6500.8,
+        "in_water_buffer_500m": false,
+        "dist_to_water_m": 1100.0
+      }
+    }
+  ]
+}

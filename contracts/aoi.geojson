@@ -1,0 +1,28 @@
+{
+  "type": "FeatureCollection",
+  "name": "PA3_RedRiver_WestLake_DongAnh_Hanoi",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "aoi_id": "PA3_HANOI",
+        "name": "Hành lang Sông Hồng – Hồ Tây – Đông Anh (Hà Nội)",
+        "crs_storage": "EPSG:4326",
+        "crs_metric": "EPSG:32648",
+        "approx_area_km2": 241.8
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [105.78, 21.01],
+            [105.93, 21.01],
+            [105.93, 21.15],
+            [105.78, 21.15],
+            [105.78, 21.01]
+          ]
+        ]
+      }
+    }
+  ]
+}

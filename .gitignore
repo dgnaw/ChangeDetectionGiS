@@ -1,0 +1,47 @@
+# Heavy geospatial & raster data (NEVER commit to Git)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+*.tif
+*.tiff
+*.jp2
+*.img
+*.vrt
+*.zip
+*.tar.gz
+*.gpkg
+*.shp
+*.dbf
+*.shx
+*.prj
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# Node / Frontend
+node_modules/
+apps/web/dist/
+apps/web/.vite/
+npm-debug.log*
+yarn-error.log*
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp

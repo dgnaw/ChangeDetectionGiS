@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TimeseriesSummaryJSON",
+  "description": "Schema chuẩn cho dữ liệu chuỗi thời gian vẽ biểu đồ Recharts và báo cáo Chương 5",
+  "type": "object",
+  "required": [
+    "aoi_name",
+    "aoi_area_km2",
+    "crs_storage",
+    "crs_metric",
+    "years",
+    "series"
+  ],
+  "properties": {
+    "aoi_name": { "type": "string" },
+    "aoi_area_km2": { "type": "number", "minimum": 0 },
+    "crs_storage": { "const": "EPSG:4326" },
+    "crs_metric": { "const": "EPSG:32648" },
+    "years": {
+      "type": "array",
+      "items": { "type": "integer" }
+    },
+    "series": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "year",
+          "water_area_km2",
+          "water_ratio_pct",
+          "water_gain_km2",
+          "water_loss_km2",
+          "otsu_threshold",
+          "cloud_cover_pct",
+          "total_pop",
+          "pop_in_buffer_500m",
+          "pop_buffer_ratio_pct",
+          "jrc_iou_score"
+        ],
+        "properties": {
+          "year": { "type": "integer" },
+          "water_area_km2": { "type": "number", "minimum": 0 },
+          "water_ratio_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+          "water_gain_km2": { "type": "number", "minimum": 0 },
+          "water_loss_km2": { "type": "number", "minimum": 0 },
+          "otsu_threshold": { "type": "number" },
+          "cloud_cover_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+          "total_pop": { "type": "integer", "minimum": 0 },
+          "pop_in_buffer_500m": { "type": "integer", "minimum": 0 },
+          "pop_buffer_ratio_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+          "jrc_iou_score": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+        }
+      }
+    }
+  }
+}

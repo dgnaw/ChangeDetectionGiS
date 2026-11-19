@@ -1,0 +1,10 @@
+pystac-client>=0.8.3
+planetary-computer>=1.0.0
+rasterio>=1.4.0
+geopandas>=1.0.0
+shapely>=2.0.6
+numpy>=1.26.4
+scipy>=1.14.0
+scikit-image>=0.24.0
+jsonschema>=4.23.0
+pytest>=8.3.0

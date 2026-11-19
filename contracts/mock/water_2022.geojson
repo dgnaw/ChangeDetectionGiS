@@ -1,0 +1,248 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.812,
+              21.05
+            ],
+            [
+              105.825,
+              21.044
+            ],
+            [
+              105.838,
+              21.05
+            ],
+            [
+              105.84,
+              21.064
+            ],
+            [
+              105.828,
+              21.076
+            ],
+            [
+              105.814,
+              21.072
+            ],
+            [
+              105.809,
+              21.06
+            ],
+            [
+              105.812,
+              21.05
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "water_id": "w_2022_hotay",
+        "year": 2022,
+        "area_km2": 5.26,
+        "perimeter_km": 17.4,
+        "mean_mndwi": 0.48,
+        "otsu_threshold": 0.103,
+        "change_type": "stable"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.785,
+              21.095
+            ],
+            [
+              105.815,
+              21.092
+            ],
+            [
+              105.845,
+              21.078
+            ],
+            [
+              105.862,
+              21.055
+            ],
+            [
+              105.875,
+              21.028
+            ],
+            [
+              105.89,
+              21.012
+            ],
+            [
+              105.902,
+              21.012
+            ],
+            [
+              105.887,
+              21.032
+            ],
+            [
+              105.873,
+              21.06
+            ],
+            [
+              105.854,
+              21.084
+            ],
+            [
+              105.82,
+              21.1
+            ],
+            [
+              105.785,
+              21.103
+            ],
+            [
+              105.785,
+              21.095
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "water_id": "w_2022_songhong",
+        "year": 2022,
+        "area_km2": 17.45,
+        "perimeter_km": 42.1,
+        "mean_mndwi": 0.36,
+        "otsu_threshold": 0.103,
+        "change_type": "stable"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.818,
+              21.125
+            ],
+            [
+              105.835,
+              21.122
+            ],
+            [
+              105.842,
+              21.132
+            ],
+            [
+              105.828,
+              21.138
+            ],
+            [
+              105.815,
+              21.133
+            ],
+            [
+              105.818,
+              21.125
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "water_id": "w_2022_vantri",
+        "year": 2022,
+        "area_km2": 2.49,
+        "perimeter_km": 9.6,
+        "mean_mndwi": 0.41,
+        "otsu_threshold": 0.103,
+        "change_type": "loss"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.8574,
+              21.1144
+            ],
+            [
+              105.8696,
+              21.1144
+            ],
+            [
+              105.8696,
+              21.1196
+            ],
+            [
+              105.8574,
+              21.1196
+            ],
+            [
+              105.8574,
+              21.1144
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "water_id": "w_2022_donganh_pond",
+        "year": 2022,
+        "area_km2": 1.1,
+        "perimeter_km": 5.2,
+        "mean_mndwi": 0.31,
+        "otsu_threshold": 0.103,
+        "change_type": "loss"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              105.885,
+              21.068
+            ],
+            [
+              105.896,
+              21.068
+            ],
+            [
+              105.896,
+              21.076
+            ],
+            [
+              105.885,
+              21.076
+            ],
+            [
+              105.885,
+              21.068
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "water_id": "w_2022_longbien_lake",
+        "year": 2022,
+        "area_km2": 0.74,
+        "perimeter_km": 3.5,
+        "mean_mndwi": 0.44,
+        "otsu_threshold": 0.103,
+        "change_type": "gain"
+      }
+    }
+  ]
+}

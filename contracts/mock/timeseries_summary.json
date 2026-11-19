@@ -1,0 +1,74 @@
+{
+  "aoi_name": "Hành lang Sông Hồng – Hồ Tây – Đông Anh (Hà Nội)",
+  "aoi_area_km2": 241.8,
+  "crs_storage": "EPSG:4326",
+  "crs_metric": "EPSG:32648",
+  "years": [2016, 2018, 2020, 2022, 2024],
+  "series": [
+    {
+      "year": 2016,
+      "water_area_km2": 29.45,
+      "water_ratio_pct": 12.18,
+      "water_gain_km2": 0.0,
+      "water_loss_km2": 0.0,
+      "otsu_threshold": 0.085,
+      "cloud_cover_pct": 4.1,
+      "total_pop": 912400,
+      "pop_in_buffer_500m": 248600,
+      "pop_buffer_ratio_pct": 27.25,
+      "jrc_iou_score": 0.86
+    },
+    {
+      "year": 2018,
+      "water_area_km2": 28.92,
+      "water_ratio_pct": 11.96,
+      "water_gain_km2": 0.41,
+      "water_loss_km2": 0.94,
+      "otsu_threshold": 0.092,
+      "cloud_cover_pct": 2.8,
+      "total_pop": 958200,
+      "pop_in_buffer_500m": 265100,
+      "pop_buffer_ratio_pct": 27.67,
+      "jrc_iou_score": 0.87
+    },
+    {
+      "year": 2020,
+      "water_area_km2": 28.15,
+      "water_ratio_pct": 11.64,
+      "water_gain_km2": 0.52,
+      "water_loss_km2": 1.82,
+      "otsu_threshold": 0.104,
+      "cloud_cover_pct": 3.5,
+      "total_pop": 1015600,
+      "pop_in_buffer_500m": 289400,
+      "pop_buffer_ratio_pct": 28.50,
+      "jrc_iou_score": 0.88
+    },
+    {
+      "year": 2022,
+      "water_area_km2": 27.68,
+      "water_ratio_pct": 11.45,
+      "water_gain_km2": 0.68,
+      "water_loss_km2": 2.45,
+      "otsu_threshold": 0.098,
+      "cloud_cover_pct": 5.2,
+      "total_pop": 1072300,
+      "pop_in_buffer_500m": 314200,
+      "pop_buffer_ratio_pct": 29.30,
+      "jrc_iou_score": null
+    },
+    {
+      "year": 2024,
+      "water_area_km2": 27.12,
+      "water_ratio_pct": 11.22,
+      "water_gain_km2": 0.74,
+      "water_loss_km2": 3.07,
+      "otsu_threshold": 0.112,
+      "cloud_cover_pct": 1.9,
+      "total_pop": 1134800,
+      "pop_in_buffer_500m": 342700,
+      "pop_buffer_ratio_pct": 30.20,
+      "jrc_iou_score": null
+    }
+  ]
+}

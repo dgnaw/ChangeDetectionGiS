@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PopulationLayerGeoJSON",
+  "description": "Schema chuẩn cho lớp lưới mật độ dân cư 250m (EPSG:4326)",
+  "type": "object",
+  "required": ["type", "features"],
+  "properties": {
+    "type": { "const": "FeatureCollection" },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "geometry", "properties"],
+        "properties": {
+          "type": { "const": "Feature" },
+          "geometry": {
+            "type": "object",
+            "required": ["type", "coordinates"],
+            "properties": {
+              "type": { "const": "Polygon" },
+              "coordinates": { "type": "array" }
+            }
+          },
+          "properties": {
+            "type": "object",
+            "required": [
+              "grid_id",
+              "year",
+              "pop_count",
+              "density_per_km2",
+              "in_water_buffer_500m",
+              "dist_to_water_m"
+            ],
+            "properties": {
+              "grid_id": { "type": "string" },
+              "year": { "type": "integer", "minimum": 2015, "maximum": 2030 },
+              "pop_count": { "type": "number", "minimum": 0 },
+              "density_per_km2": { "type": "number", "minimum": 0 },
+              "in_water_buffer_500m": { "type": "boolean" },
+              "dist_to_water_m": { "type": "number", "minimum": 0 }
+            }
+          }
+        }
+      }
+    }
+  }
+}
