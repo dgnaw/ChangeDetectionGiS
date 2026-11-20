@@ -3,21 +3,29 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from pathlib import Path
 
-from src.config import DEFAULT_AOI_PATH, DEFAULT_OUT_DIR, DEFAULT_RAW_DIR, YEARS
+from src.config import (
+    DEFAULT_AOI_PATH,
+    DEFAULT_OUT_DIR,
+    DEFAULT_RAW_DIR,
+    MAX_CLOUD_COVER_PCT,
+    YEARS,
+)
+from src.water.fetch_stac import fetch_sentinel2_for_year
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI arguments for running water, population, or full pipeline steps."""
+    """Parse CLI arguments for running fetch, water, pop, or full pipeline steps."""
     parser = argparse.ArgumentParser(
         description="Run Sentinel-2 surface water & GHSL population GIS pipeline."
     )
     parser.add_argument(
         "--step",
-        choices=["water", "pop", "all"],
+        choices=["fetch", "water", "pop", "all"],
         default="all",
-        help="Pipeline stage to execute: water, pop, or all.",
+        help="Pipeline stage to execute: fetch (Tuần 2 STAC), water, pop, or all.",
     )
     parser.add_argument(
         "--aoi",
@@ -31,6 +39,23 @@ def parse_args() -> argparse.Namespace:
         nargs="+",
         default=list(YEARS),
         help="List of dry-season years to process.",
+    )
+    parser.add_argument(
+        "--max-cloud",
+        type=float,
+        default=MAX_CLOUD_COVER_PCT,
+        help="Maximum eo:cloud_cover percentage for STAC search (default: 10.0).",
+    )
+    parser.add_argument(
+        "--max-scenes",
+        type=int,
+        default=3,
+        help="Maximum number of least-cloudy scenes to download per year (default: 3).",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Re-download and overwrite existing clipped GeoTIFFs.",
     )
     parser.add_argument(
         "--raw-dir",
@@ -49,15 +74,28 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     """Execute the requested pipeline stages."""
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     args = parse_args()
-    print(f"[gis-pipeline] Step: {args.step}")
+    print(f"[gis-pipeline] Step: {args.step} | Years: {args.years}")
     print(f"[gis-pipeline] AOI: {args.aoi}")
-    print(f"[gis-pipeline] Years: {args.years}")
-    print(f"[gis-pipeline] Raw dir: {args.raw_dir}")
-    print(f"[gis-pipeline] Output dir: {args.out}")
-    print(
-        "[gis-pipeline] Scaffold ready. Implement src/water/ (Weeks 2-4) and src/population/ (Week 5)."
-    )
+
+    if args.step in ("fetch", "water", "all"):
+        for year in args.years:
+            year_dir = fetch_sentinel2_for_year(
+                aoi_path=args.aoi,
+                year=year,
+                out_dir=args.raw_dir,
+                max_cloud_pct=args.max_cloud,
+                max_scenes=args.max_scenes,
+                overwrite=args.overwrite,
+            )
+            print(f"[gis-pipeline] Cached Sentinel-2 ({year}) -> {year_dir}")
+
+    if args.step in ("water", "all"):
+        print("[gis-pipeline] TODO (Tuần 3-4): Run preprocess -> mndwi_otsu -> vectorize -> validate_jrc.")
+
+    if args.step in ("pop", "all"):
+        print("[gis-pipeline] TODO (Tuần 5): Run clip_population -> spatial_overlay -> grid_to_geojson -> build_timeseries.")
 
 
 if __name__ == "__main__":
