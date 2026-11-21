@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -38,9 +40,11 @@ def health_check(db: Session = Depends(get_db)) -> HealthResponse | JSONResponse
         body = HealthResponse(status="error", service=SERVICE_NAME, database="unreachable", detail=str(exc.orig or exc))
         return JSONResponse(status_code=503, content=body.model_dump())
 
+    records: dict[str, int] | None
+    database: Literal["connected", "schema_missing"]
     try:
         records = dict(db.execute(COUNT_SQL).mappings().one())
-        database = "ok"
+        database = "connected"
     except SQLAlchemyError:
         db.rollback()
         records, database = None, "schema_missing"  # DB sống nhưng chưa chạy seed.py

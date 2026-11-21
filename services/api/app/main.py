@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -35,9 +36,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+DEFAULT_CORS_ORIGINS = (
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+)
+_cors_env = os.getenv("CORS_ORIGINS", "")
+ALLOW_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()] or list(DEFAULT_CORS_ORIGINS)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=ALLOW_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "OPTIONS"],
     allow_headers=["*"],

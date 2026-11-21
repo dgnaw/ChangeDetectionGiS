@@ -14,7 +14,7 @@
 
 const API_BASE: string = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 const FORCE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
-const REQUEST_TIMEOUT_MS = 2500;
+const REQUEST_TIMEOUT_MS = 8000;
 /** Sau khi Backend lỗi, chờ bao lâu mới thử gọi lại API thật (ms). */
 const RETRY_BACKEND_AFTER_MS = 15000;
 
@@ -44,7 +44,7 @@ export interface PopulationProperties {
 }
 
 export type WaterLayer = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, WaterProperties>;
-export type PopulationLayer = GeoJSON.FeatureCollection<GeoJSON.Polygon, PopulationProperties>;
+export type PopulationLayer = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, PopulationProperties>;
 
 export interface TimeseriesPoint {
   year: number;
@@ -72,6 +72,10 @@ export interface TimeseriesResponse {
 export interface HealthResponse {
   status: string;
   service: string;
+  database?: string;
+  postgis_version?: string | null;
+  records?: Record<string, number> | null;
+  detail?: string | null;
 }
 
 // ───────────────────────────── Theo dõi nguồn dữ liệu (API / Mock) ─────────────────────────────

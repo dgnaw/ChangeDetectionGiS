@@ -162,12 +162,16 @@ interface CameraState {
 
 // ───────────────────────────── 1 khung bản đồ ─────────────────────────────
 
+const lineOpacity = (fillOpacity: number) => (fillOpacity === 0 ? 0 : Math.min(1, fillOpacity + 0.2));
+
 interface MapViewProps {
   year: number;
   compareMode: boolean;
   showWater: boolean;
   showPopulation: boolean;
   onlyBuffer: boolean;
+  waterOpacity: number;
+  popOpacity: number;
   aoi: GeoJSON.FeatureCollection | null;
   label?: string;
   syncGroup: SyncGroup;
@@ -181,6 +185,8 @@ const MapView: React.FC<MapViewProps> = ({
   showWater,
   showPopulation,
   onlyBuffer,
+  waterOpacity,
+  popOpacity,
   aoi,
   label,
   syncGroup,
@@ -190,6 +196,8 @@ const MapView: React.FC<MapViewProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const popupRef = useRef<Popup | null>(null);
+  const opacityRef = useRef({ waterOpacity, popOpacity });
+  opacityRef.current = { waterOpacity, popOpacity };
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -218,11 +226,12 @@ const MapView: React.FC<MapViewProps> = ({
       map.addSource("water", { type: "geojson", data: EMPTY_FC });
 
       // Lưới dân cư Choropleth (dưới cùng)
+      const { waterOpacity: initWaterOp, popOpacity: initPopOp } = opacityRef.current;
       map.addLayer({
         id: "pop-fill",
         type: "fill",
         source: "population",
-        paint: { "fill-color": densityColor, "fill-opacity": 0.65 }
+        paint: { "fill-color": densityColor, "fill-opacity": initPopOp }
       });
       map.addLayer({
         id: "pop-outline",
@@ -230,7 +239,8 @@ const MapView: React.FC<MapViewProps> = ({
         source: "population",
         paint: {
           "line-color": ["case", ["==", ["get", "in_water_buffer_500m"], true], "#7c3aed", "#ffffff"],
-          "line-width": ["case", ["==", ["get", "in_water_buffer_500m"], true], 1.2, 0.5]
+          "line-width": ["case", ["==", ["get", "in_water_buffer_500m"], true], 1.2, 0.5],
+          "line-opacity": lineOpacity(initPopOp)
         }
       });
 
@@ -239,13 +249,17 @@ const MapView: React.FC<MapViewProps> = ({
         id: "water-fill",
         type: "fill",
         source: "water",
-        paint: { "fill-color": changeTypeColor, "fill-opacity": 0.7 }
+        paint: { "fill-color": changeTypeColor, "fill-opacity": initWaterOp }
       });
       map.addLayer({
         id: "water-line",
         type: "line",
         source: "water",
-        paint: { "line-color": changeTypeColor, "line-width": 1.2 }
+        paint: {
+          "line-color": changeTypeColor,
+          "line-width": 1.2,
+          "line-opacity": lineOpacity(initWaterOp)
+        }
       });
 
       // Viền đỏ AOI (trên cùng)
@@ -377,6 +391,16 @@ const MapView: React.FC<MapViewProps> = ({
     ["pop-fill", "pop-outline"].forEach((id) => map.setLayoutProperty(id, "visibility", vis(showPopulation)));
   }, [ready, showWater, showPopulation]);
 
+  // Cập nhật độ mờ (Opacity) lớp Mặt nước & Dân cư
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    map.setPaintProperty("water-fill", "fill-opacity", waterOpacity);
+    map.setPaintProperty("water-line", "line-opacity", lineOpacity(waterOpacity));
+    map.setPaintProperty("pop-fill", "fill-opacity", popOpacity);
+    map.setPaintProperty("pop-outline", "line-opacity", lineOpacity(popOpacity));
+  }, [ready, waterOpacity, popOpacity]);
+
   return (
     <div style={{ position: "relative", flex: 1, minWidth: 0, height: "100%" }}>
       <div ref={containerRef} style={{ position: "absolute", inset: 0 }} />
@@ -468,6 +492,8 @@ interface MapCanvasProps {
   showWater: boolean;
   showPopulation: boolean;
   onlyBuffer: boolean;
+  waterOpacity?: number;
+  popOpacity?: number;
   compareMode: boolean;
   /** Cặp năm so sánh [trái, phải], mặc định [2016, 2024]. */
   compareYears?: [number, number];
@@ -478,6 +504,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   showWater,
   showPopulation,
   onlyBuffer,
+  waterOpacity = 0.7,
+  popOpacity = 0.65,
   compareMode,
   compareYears = [2016, 2024]
 }) => {
@@ -497,6 +525,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     showWater,
     showPopulation,
     onlyBuffer,
+    waterOpacity,
+    popOpacity,
     aoi,
     syncGroup: syncGroupRef.current,
     cameraRef,

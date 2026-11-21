@@ -32,6 +32,8 @@ export default function App() {
   const [showWater, setShowWater] = useState<boolean>(true);
   const [showPopulation, setShowPopulation] = useState<boolean>(true);
   const [onlyBuffer, setOnlyBuffer] = useState<boolean>(false);
+  const [waterOpacity, setWaterOpacity] = useState<number>(0.7);
+  const [popOpacity, setPopOpacity] = useState<number>(0.65);
   const [compareMode, setCompareMode] = useState<boolean>(false);
   const [compareYears, setCompareYears] = useState<[number, number]>([2016, 2024]);
   const [timeseries, setTimeseries] = useState<TimeseriesResponse | null>(null);
@@ -95,9 +97,13 @@ export default function App() {
             showWater={showWater}
             showPopulation={showPopulation}
             onlyBuffer={onlyBuffer}
+            waterOpacity={waterOpacity}
+            popOpacity={popOpacity}
             onToggleWater={setShowWater}
             onTogglePopulation={setShowPopulation}
             onToggleOnlyBuffer={setOnlyBuffer}
+            onChangeWaterOpacity={setWaterOpacity}
+            onChangePopOpacity={setPopOpacity}
           />
           <CompareToggle
             enabled={compareMode}
@@ -135,6 +141,8 @@ export default function App() {
           showWater={showWater}
           showPopulation={showPopulation}
           onlyBuffer={onlyBuffer}
+          waterOpacity={waterOpacity}
+          popOpacity={popOpacity}
           compareMode={compareMode}
           compareYears={compareYears}
         />

@@ -10,7 +10,7 @@ from pydantic import BaseModel
 class HealthResponse(BaseModel):
     status: Literal["ok", "error"]
     service: str
-    database: Literal["ok", "schema_missing", "unreachable"]
+    database: Literal["connected", "schema_missing", "unreachable"]
     postgis_version: str | None = None
     records: dict[str, int] | None = None
     detail: str | None = None

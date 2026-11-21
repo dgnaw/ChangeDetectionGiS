@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from collections.abc import Iterable, Iterator
@@ -30,7 +31,7 @@ from sqlalchemy import delete, func, select, text, true, update  # noqa: E402
 from sqlalchemy.dialects.postgresql import insert as pg_insert  # noqa: E402
 from sqlalchemy.engine import Connection  # noqa: E402
 
-from app.config import MOCK_DIR, VALID_YEARS  # noqa: E402
+from app.config import MOCK_DIR, SCHEMA_YEAR_MAX, SCHEMA_YEAR_MIN, VALID_YEARS  # noqa: E402
 from app.db import Base, engine, init_db  # noqa: E402
 from app.models import PopulationGrid, TimeseriesMetric, WaterPolygon  # noqa: E402
 
@@ -68,6 +69,39 @@ TS_SERIES_FIELDS = (
 )
 POLYGONAL = {"Polygon", "MultiPolygon"}
 CHANGE_TYPES = {"stable", "gain", "loss"}
+MAX_ID_LEN = 64
+
+# Miền giá trị chuẩn khớp contracts/schemas/*
+LAYER_BOUNDS: dict[str, dict[str, tuple[float | None, float | None]]] = {
+    "water_id": {
+        "year": (SCHEMA_YEAR_MIN, SCHEMA_YEAR_MAX),
+        "area_km2": (0.0, None),
+        "perimeter_km": (0.0, None),
+        "mean_mndwi": (-1.0, 1.0),
+        "otsu_threshold": (-1.0, 1.0),
+    },
+    "grid_id": {
+        "year": (SCHEMA_YEAR_MIN, SCHEMA_YEAR_MAX),
+        "pop_count": (0.0, None),
+        "density_per_km2": (0.0, None),
+        "dist_to_water_m": (0.0, None),
+    },
+}
+
+# (type, min, max, nullable) khớp contracts/schemas/timeseries.schema.json
+TS_SERIES_SPECS: dict[str, tuple[type, float | None, float | None, bool]] = {
+    "year": (int, SCHEMA_YEAR_MIN, SCHEMA_YEAR_MAX, False),
+    "water_area_km2": (float, 0.0, None, False),
+    "water_ratio_pct": (float, 0.0, 100.0, False),
+    "water_gain_km2": (float, 0.0, None, False),
+    "water_loss_km2": (float, 0.0, None, False),
+    "otsu_threshold": (float, None, None, False),
+    "cloud_cover_pct": (float, 0.0, 100.0, False),
+    "total_pop": (int, 0, None, False),
+    "pop_in_buffer_500m": (int, 0, None, False),
+    "pop_buffer_ratio_pct": (float, 0.0, 100.0, False),
+    "jrc_iou_score": (float, 0.0, 1.0, True),
+}
 
 
 class SeedError(RuntimeError):
@@ -112,14 +146,35 @@ def _coerce(value: Any, typ: type, field: str, ctx: str) -> Any:
             raise SeedError(f"{ctx}: '{field}' phải là boolean, nhận {value!r}")
         return value
     if typ is int:
-        if isinstance(value, bool) or not float(value).is_integer():
+        if isinstance(value, bool):
             raise SeedError(f"{ctx}: '{field}' phải là số nguyên, nhận {value!r}")
-        return int(value)
+        try:
+            num = float(value)
+        except (TypeError, ValueError) as exc:
+            raise SeedError(f"{ctx}: '{field}' phải là số nguyên, nhận {value!r}") from exc
+        if not math.isfinite(num) or not num.is_integer():
+            raise SeedError(f"{ctx}: '{field}' phải là số nguyên hữu hạn, nhận {value!r}")
+        return int(num)
     if typ is float:
         if isinstance(value, bool):
             raise SeedError(f"{ctx}: '{field}' phải là số, nhận {value!r}")
-        return float(value)
-    return str(value)
+        try:
+            num = float(value)
+        except (TypeError, ValueError) as exc:
+            raise SeedError(f"{ctx}: '{field}' phải là số, nhận {value!r}") from exc
+        if not math.isfinite(num):
+            raise SeedError(f"{ctx}: '{field}' phải là số hữu hạn (không NaN/Inf), nhận {value!r}")
+        return num
+    if not isinstance(value, str) or not value.strip():
+        raise SeedError(f"{ctx}: '{field}' phải là chuỗi không rỗng, nhận {value!r}")
+    return value
+
+
+def _require_range(value: float, low: float | None, high: float | None, field: str, ctx: str) -> None:
+    if low is not None and value < low:
+        raise SeedError(f"{ctx}: '{field}'={value} nhỏ hơn mức tối thiểu {low}")
+    if high is not None and value > high:
+        raise SeedError(f"{ctx}: '{field}'={value} vượt quá mức tối đa {high}")
 
 
 def load_features(
@@ -129,6 +184,7 @@ def load_features(
     if data.get("type") != "FeatureCollection" or not isinstance(data.get("features"), list):
         raise SeedError(f"{path.name}: không phải GeoJSON FeatureCollection hợp lệ")
 
+    bounds = LAYER_BOUNDS.get(id_field, {})
     rows: dict[str, dict[str, Any]] = {}
     for i, feat in enumerate(data["features"]):
         ctx = f"{path.name}#feature[{i}]"
@@ -137,6 +193,10 @@ def load_features(
             raise SeedError(f"{ctx}: geometry.type={geom.get('type')!r}, yêu cầu {sorted(geom_types)}")
         props = feat.get("properties") or {}
         row = {k: _coerce(props.get(k), t, k, ctx) for k, t in props_spec.items()}
+        if len(row[id_field]) > MAX_ID_LEN:
+            raise SeedError(f"{ctx}: '{id_field}' dài {len(row[id_field])} ký tự (tối đa {MAX_ID_LEN})")
+        for field, (low, high) in bounds.items():
+            _require_range(row[field], low, high, field, ctx)
         if row["year"] != year:
             raise SeedError(f"{ctx}: properties.year={row['year']} không khớp tên file (năm {year})")
         if "change_type" in row and row["change_type"] not in CHANGE_TYPES:
@@ -154,14 +214,31 @@ def load_timeseries(path: Path) -> list[dict[str, Any]]:
     for key in ("aoi_name", "aoi_area_km2", "series"):
         if key not in data:
             raise SeedError(f"{path.name}: thiếu trường '{key}'")
+    aoi_name = _coerce(data["aoi_name"], str, "aoi_name", path.name)
+    aoi_area_km2 = _coerce(data["aoi_area_km2"], float, "aoi_area_km2", path.name)
+    _require_range(aoi_area_km2, 0.0, None, "aoi_area_km2", path.name)
+    if "crs_storage" in data and data["crs_storage"] != "EPSG:4326":
+        raise SeedError(f"{path.name}: crs_storage={data['crs_storage']!r} phải là 'EPSG:4326'")
+    if "crs_metric" in data and data["crs_metric"] != "EPSG:32648":
+        raise SeedError(f"{path.name}: crs_metric={data['crs_metric']!r} phải là 'EPSG:32648'")
+    if not isinstance(data["series"], list):
+        raise SeedError(f"{path.name}: 'series' phải là mảng")
+
     rows: dict[int, dict[str, Any]] = {}
     for i, item in enumerate(data["series"]):
+        ctx = f"{path.name}#series[{i}]"
         missing = [f for f in TS_SERIES_FIELDS if f not in item]
         if missing:
-            raise SeedError(f"{path.name}#series[{i}]: thiếu trường {missing}")
-        row = {f: item[f] for f in TS_SERIES_FIELDS}
-        row["aoi_name"] = str(data["aoi_name"])
-        row["aoi_area_km2"] = float(data["aoi_area_km2"])
+            raise SeedError(f"{ctx}: thiếu trường {missing}")
+        row: dict[str, Any] = {"aoi_name": aoi_name, "aoi_area_km2": aoi_area_km2}
+        for field, (typ, low, high, nullable) in TS_SERIES_SPECS.items():
+            raw = item[field]
+            if raw is None and nullable:
+                row[field] = None
+                continue
+            val = _coerce(raw, typ, field, ctx)
+            _require_range(val, low, high, field, ctx)
+            row[field] = val
         rows[int(row["year"])] = row
     return [rows[y] for y in sorted(rows)]
 

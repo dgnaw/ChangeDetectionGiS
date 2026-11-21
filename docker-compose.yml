@@ -34,7 +34,7 @@ services:
       # Tự nạp contracts/mock/ khi DB còn trống. Tuần 7 chuyển sang dữ liệu thật:
       #   docker compose exec api python scripts/seed.py --source /data/processed
       AUTO_SEED: "true"
-      SEED_SOURCE: /contracts/mock
+      SEED_SOURCE: ${SEED_SOURCE:-/contracts/mock}
       UVICORN_RELOAD: "true"
     ports:
       - "8000:8000"
