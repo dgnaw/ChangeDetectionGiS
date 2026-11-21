@@ -8,7 +8,8 @@ services:
       POSTGRES_PASSWORD: gis_password
       POSTGRES_DB: gis_change_detection
     ports:
-      - "5432:5432"
+      # Đổi cổng host nếu máy đã có Postgres khác chiếm 5432: POSTGIS_PORT=5433 docker compose up -d
+      - "${POSTGIS_PORT:-5432}:5432"
     volumes:
       - postgis_data:/var/lib/postgresql/data
     healthcheck:
@@ -28,6 +29,13 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://gis_user:gis_password@db:5432/gis_change_detection
+      CONTRACTS_DIR: /contracts
+      PROCESSED_DIR: /data/processed
+      # Tự nạp contracts/mock/ khi DB còn trống. Tuần 7 chuyển sang dữ liệu thật:
+      #   docker compose exec api python scripts/seed.py --source /data/processed
+      AUTO_SEED: "true"
+      SEED_SOURCE: /contracts/mock
+      UVICORN_RELOAD: "true"
     ports:
       - "8000:8000"
     volumes:

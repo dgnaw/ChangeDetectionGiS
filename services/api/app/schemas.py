@@ -7,6 +7,15 @@ from typing import Literal
 from pydantic import BaseModel
 
 
+class HealthResponse(BaseModel):
+    status: Literal["ok", "error"]
+    service: str
+    database: Literal["ok", "schema_missing", "unreachable"]
+    postgis_version: str | None = None
+    records: dict[str, int] | None = None
+    detail: str | None = None
+
+
 class TimeseriesPoint(BaseModel):
     year: int
     water_area_km2: float

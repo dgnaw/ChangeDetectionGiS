@@ -1,36 +1,73 @@
-"""Router trả về lớp GeoJSON mặt nước và dân cư (Người B hoàn thiện truy vấn PostGIS ở Tuần 3)."""
+"""Router trả về lớp GeoJSON mặt nước và dân cư, truy vấn trực tiếp PostGIS (Người B)."""
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-from typing import Any
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from sqlalchemy import exists, select
+from sqlalchemy.orm import Session
 
-from fastapi import APIRouter, HTTPException, Query
+from app.db import get_db
+from app.models import PopulationGrid, WaterPolygon
+from app.routers._common import YEAR_DESCRIPTION, YEAR_ERROR_RESPONSES, feature_collection_query, validate_year
 
 router = APIRouter(prefix="/api/v1/layers", tags=["Spatial Layers"])
 
-MOCK_DIR = Path(__file__).resolve().parents[4] / "contracts" / "mock"
-VALID_YEARS = {2016, 2018, 2020, 2022, 2024}
+GEOJSON_EXAMPLE = {"application/json": {"example": {"type": "FeatureCollection", "features": []}}}
 
 
-@router.get("/water")
-def get_water_layer(year: int = Query(2020, description="Năm phân tích (2016, 2018, 2020, 2022, 2024)")) -> dict[str, Any]:
-    if year not in VALID_YEARS:
-        raise HTTPException(status_code=404, detail=f"Year {year} not available. Choose from {sorted(VALID_YEARS)}.")
-    mock_file = MOCK_DIR / f"water_{year}.geojson"
-    return json.loads(mock_file.read_text(encoding="utf-8"))
+def _not_seeded(layer: str, year: int) -> HTTPException:
+    return HTTPException(
+        status_code=404,
+        detail=f"Chưa có dữ liệu lớp '{layer}' năm {year} trong PostGIS. Hãy chạy `python scripts/seed.py`.",
+    )
 
 
-@router.get("/population")
+@router.get(
+    "/water",
+    summary="Lớp đa giác mặt nước (GeoJSON FeatureCollection, EPSG:4326)",
+    responses={200: {"content": GEOJSON_EXAMPLE}, **YEAR_ERROR_RESPONSES},
+)
+def get_water_layer(
+    year: int = Query(2020, description=YEAR_DESCRIPTION),
+    db: Session = Depends(get_db),
+) -> Response:
+    validate_year(year)
+    m = WaterPolygon
+    stmt = feature_collection_query(
+        m,
+        m.water_id,
+        [m.water_id, m.year, m.area_km2, m.perimeter_km, m.mean_mndwi, m.otsu_threshold, m.change_type],
+        m.year == year,
+    )
+    geojson, n = db.execute(stmt).one()
+    if n == 0:
+        raise _not_seeded("water", year)
+    return Response(content=geojson, media_type="application/json")
+
+
+@router.get(
+    "/population",
+    summary="Lớp lưới dân cư 250m (GeoJSON FeatureCollection, EPSG:4326)",
+    responses={200: {"content": GEOJSON_EXAMPLE}, **YEAR_ERROR_RESPONSES},
+)
 def get_population_layer(
-    year: int = Query(2020, description="Năm phân tích (2016, 2018, 2020, 2022, 2024)"),
-    only_buffer: bool = Query(False, description="Chỉ lọc các ô dân cư trong vùng đệm 500m quanh mặt nước"),
-) -> dict[str, Any]:
-    if year not in VALID_YEARS:
-        raise HTTPException(status_code=404, detail=f"Year {year} not available. Choose from {sorted(VALID_YEARS)}.")
-    mock_file = MOCK_DIR / f"pop_{year}.geojson"
-    data = json.loads(mock_file.read_text(encoding="utf-8"))
+    year: int = Query(2020, description=YEAR_DESCRIPTION),
+    only_buffer: bool = Query(False, description="Chỉ trả các ô dân cư nằm trong vùng đệm 500m quanh mặt nước"),
+    db: Session = Depends(get_db),
+) -> Response:
+    validate_year(year)
+    m = PopulationGrid
+    where = [m.year == year]
     if only_buffer:
-        data["features"] = [f for f in data["features"] if f["properties"].get("in_water_buffer_500m") is True]
-    return data
+        where.append(m.in_water_buffer_500m.is_(True))
+    stmt = feature_collection_query(
+        m,
+        m.grid_id,
+        [m.grid_id, m.year, m.pop_count, m.density_per_km2, m.in_water_buffer_500m, m.dist_to_water_m],
+        *where,
+    )
+    geojson, n = db.execute(stmt).one()
+    # only_buffer=true có thể hợp lệ mà rỗng → chỉ báo 404 khi cả năm chưa được seed
+    if n == 0 and not db.execute(select(exists().where(m.year == year))).scalar():
+        raise _not_seeded("population", year)
+    return Response(content=geojson, media_type="application/json")
