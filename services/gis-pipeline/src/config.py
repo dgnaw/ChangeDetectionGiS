@@ -29,6 +29,13 @@ S2_BOA_ADD_OFFSET = -1000
 # Cloud Medium Prob (8), Cloud High Prob (9), Thin Cirrus (10)
 INVALID_SCL_CLASSES = (0, 1, 3, 8, 9, 10)
 
+# MNDWI-Otsu bimodal window & physical clamp bounds
+OTSU_WINDOW_MIN = -0.30
+OTSU_WINDOW_MAX = 0.60
+OTSU_CLAMP_MIN = 0.00
+OTSU_CLAMP_MAX = 0.15
+WATER_MASK_NODATA = 255
+
 # Water vectorization & topology simplification rules
 MIN_WATER_AREA_KM2 = 0.005
 SIMPLIFY_TOLERANCE_DEG = 0.0001

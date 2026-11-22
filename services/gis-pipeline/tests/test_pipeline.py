@@ -24,8 +24,8 @@ from src.water.fetch_stac import (
     filter_and_rank_items,
     load_aoi,
 )
-from src.water.mndwi_otsu import compute_mndwi
-from src.water.preprocess import apply_pb0400_offset
+from src.water.mndwi_otsu import compute_mndwi, threshold_otsu_water
+from src.water.preprocess import apply_pb0400_offset, compute_median_composite
 from src.water.validate_jrc import compute_iou
 
 ROOT = PIPELINE_ROOT.parents[1]
@@ -88,6 +88,38 @@ def test_apply_pb0400_offset() -> None:
     post_2022 = apply_pb0400_offset(raw_dn, "2022-02-10")
     assert np.allclose(pre_2022, np.array([[800.0, 1500.0, 3200.0]], dtype=np.float32))
     assert np.allclose(post_2022, np.array([[0.0, 500.0, 2200.0]], dtype=np.float32))
+
+
+def test_apply_pb0400_offset_respects_processing_baseline() -> None:
+    raw_dn = np.array([[450.0, 1600.0]], dtype=np.float32)
+    # Cảnh đầu năm 2022 (2022-01-18) có PB 03.00 -> KHÔNG trừ 1000
+    jan_2022_pb03 = apply_pb0400_offset(raw_dn, year_or_date="2022-01-18", processing_baseline="03.00")
+    assert np.allclose(jan_2022_pb03, raw_dn)
+    # Cảnh tái xử lý PB 05.10 -> CÓ trừ 1000
+    reprocessed_pb05 = apply_pb0400_offset(raw_dn, year_or_date="2022-04-03", processing_baseline="05.10")
+    assert np.allclose(reprocessed_pb05, np.array([[0.0, 600.0]], dtype=np.float32))
+
+
+def test_composite_masks_clouds_seamlessly() -> None:
+    scene1 = np.array([[0.4, np.nan], [-0.2, np.nan]], dtype=np.float32)
+    scene2 = np.array([[np.nan, 0.5], [-0.3, -0.1]], dtype=np.float32)
+    comp = compute_median_composite([scene1, scene2])
+    assert np.allclose(comp, np.array([[0.4, 0.5], [-0.25, -0.1]], dtype=np.float32))
+
+
+def test_threshold_otsu_water_bimodal_and_bounds() -> None:
+    rng = np.random.default_rng(42)
+    land = rng.normal(loc=-0.20, scale=0.05, size=890).astype(np.float32)
+    water = rng.normal(loc=0.35, scale=0.05, size=110).astype(np.float32)
+    arr = np.concatenate([land, water]).reshape(20, 50)
+    arr[0, 0] = np.nan
+
+    mask, clamped_t, raw_t = threshold_otsu_water(arr)
+    assert 0.0 <= clamped_t <= 0.15
+    assert -0.20 < raw_t < 0.35
+    assert mask[0, 0] == 255
+    # Số pixel nước tách được phải xấp xỉ 110 pixel
+    assert 100 <= int((mask == 1).sum()) <= 120
 
 
 def test_compute_iou() -> None:

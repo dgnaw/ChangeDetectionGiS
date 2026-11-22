@@ -14,18 +14,20 @@ from src.config import (
     YEARS,
 )
 from src.water.fetch_stac import fetch_sentinel2_for_year
+from src.water.mndwi_otsu import run_mndwi_otsu_for_year
+from src.water.preprocess import build_year_composite
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI arguments for running fetch, water, pop, or full pipeline steps."""
+    """Parse CLI arguments for running fetch, preprocess, water, pop, or full pipeline steps."""
     parser = argparse.ArgumentParser(
         description="Run Sentinel-2 surface water & GHSL population GIS pipeline."
     )
     parser.add_argument(
         "--step",
-        choices=["fetch", "water", "pop", "all"],
+        choices=["fetch", "preprocess", "water", "pop", "all"],
         default="all",
-        help="Pipeline stage to execute: fetch (Tuần 2 STAC), water, pop, or all.",
+        help="Pipeline stage to execute: fetch (Tuần 2), preprocess (Tuần 3 MNDWI+Otsu), water, pop, or all.",
     )
     parser.add_argument(
         "--aoi",
@@ -91,8 +93,20 @@ def main() -> None:
             )
             print(f"[gis-pipeline] Cached Sentinel-2 ({year}) -> {year_dir}")
 
+    if args.step in ("preprocess", "water", "all"):
+        for year in args.years:
+            year_dir = args.raw_dir / "sentinel2" / str(year)
+            build_year_composite(year_dir=year_dir, overwrite=args.overwrite)
+            stats = run_mndwi_otsu_for_year(year_dir=year_dir)
+            print(
+                f"[mndwi_otsu] {year} | raw_otsu={stats['raw_otsu_threshold']:.4f} | "
+                f"used_otsu={stats['otsu_threshold']:.4f} | "
+                f"raw_water_area={stats['raw_water_area_km2']:.2f} km² | "
+                f"mean_mndwi={stats['mean_water_mndwi']:.3f}"
+            )
+
     if args.step in ("water", "all"):
-        print("[gis-pipeline] TODO (Tuần 3-4): Run preprocess -> mndwi_otsu -> vectorize -> validate_jrc.")
+        print("[gis-pipeline] TODO (Tuần 4): Run vectorize -> validate_jrc.")
 
     if args.step in ("pop", "all"):
         print("[gis-pipeline] TODO (Tuần 5): Run clip_population -> spatial_overlay -> grid_to_geojson -> build_timeseries.")
