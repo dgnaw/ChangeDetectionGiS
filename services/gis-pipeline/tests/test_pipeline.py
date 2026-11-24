@@ -26,7 +26,8 @@ from src.water.fetch_stac import (
 )
 from src.water.mndwi_otsu import compute_mndwi, threshold_otsu_water
 from src.water.preprocess import apply_pb0400_offset, compute_median_composite
-from src.water.validate_jrc import compute_iou
+from src.water.validate_jrc import compute_iou, compute_validation_metrics
+from src.water.vectorize import classify_water_change_masks, vectorize_water_mask
 
 ROOT = PIPELINE_ROOT.parents[1]
 
@@ -126,6 +127,105 @@ def test_compute_iou() -> None:
     pred = np.array([[1, 1], [0, 0]])
     ref = np.array([[1, 0], [0, 0]])
     assert np.isclose(compute_iou(pred, ref), 0.5)
+
+
+def test_compute_jrc_validation_metrics() -> None:
+    pred = np.array([[1, 1], [0, 0]], dtype=np.uint8)
+    ref = np.array([[1, 0], [1, 0]], dtype=np.uint8)
+    m = compute_validation_metrics(pred, ref, pixel_area_km2=0.01)
+    assert np.isclose(m["iou"], 1 / 3, atol=1e-4)
+    assert np.isclose(m["precision"], 0.5)
+    assert np.isclose(m["recall"], 0.5)
+    assert np.isclose(m["f1_score"], 0.5)
+    assert np.isclose(m["overall_accuracy"], 0.5)
+    assert np.isclose(m["pred_area_km2"], 0.02)
+
+
+def test_clean_and_classify_water_change_masks() -> None:
+    base = np.zeros((30, 30), dtype=np.uint8)
+    curr = np.zeros((30, 30), dtype=np.uint8)
+
+    # Vùng nước ổn định 10x10 = 100 px (>= 50 px)
+    base[2:12, 2:12] = 1
+    curr[2:12, 2:12] = 1
+
+    # Vùng nước mất đi (loss) 8x8 = 64 px (>= 50 px) ở góc trên phải
+    base[2:10, 18:26] = 1
+
+    # Vùng nước mới (gain) 8x8 = 64 px (>= 50 px) ở góc dưới trái
+    curr[18:26, 2:10] = 1
+
+    # Hạt nhiễu 1x1 ở curr -> phải bị lọc bỏ hoàn toàn
+    curr[28, 28] = 1
+
+    masks = classify_water_change_masks(curr_mask_uint8=curr, base_mask_uint8=base, min_pixels=50)
+    assert int(masks["stable"].sum()) == 100
+    assert int(masks["gain"].sum()) == 64
+    assert int(masks["loss"].sum()) == 64
+    assert not masks["stable"][28, 28] and not masks["gain"][28, 28]
+
+
+def test_vectorize_water_output_matches_contract_schema(tmp_path: Path) -> None:
+    import rasterio
+    from rasterio.transform import from_origin
+    from shapely.geometry import shape as shp_shape
+
+    arr = np.zeros((30, 30), dtype=np.uint8)
+    arr[5:15, 5:15] = 1  # 10x10 pixels at 10m = 10,000 m² = 0.01 km² (>= 0.005 km²)
+    mndwi = np.full((30, 30), -0.2, dtype=np.float32)
+    mndwi[5:15, 5:15] = 0.45
+
+    transform = from_origin(585000.0, 2335000.0, 10.0, 10.0)
+    mask_tif = tmp_path / "water_mask_2020.tif"
+    mndwi_tif = tmp_path / "mndwi_2020.tif"
+    out_geojson = tmp_path / "water_2020.geojson"
+
+    with rasterio.open(
+        mask_tif,
+        "w",
+        driver="GTiff",
+        height=30,
+        width=30,
+        count=1,
+        dtype="uint8",
+        crs=CRS_METRIC,
+        transform=transform,
+        nodata=255,
+    ) as dst:
+        dst.write(arr, 1)
+
+    with rasterio.open(
+        mndwi_tif,
+        "w",
+        driver="GTiff",
+        height=30,
+        width=30,
+        count=1,
+        dtype="float32",
+        crs=CRS_METRIC,
+        transform=transform,
+        nodata=np.nan,
+    ) as dst:
+        dst.write(mndwi, 1)
+
+    summary = vectorize_water_mask(
+        mask_path=mask_tif,
+        year=2020,
+        out_geojson=out_geojson,
+        mndwi_path=mndwi_tif,
+        otsu_threshold=0.0955,
+    )
+    assert summary["polygon_counts"]["total"] == 1
+    assert np.isclose(summary["water_area_km2"], 0.01, atol=1e-3)
+
+    fc = json.loads(out_geojson.read_text(encoding="utf-8"))
+    water_schema = json.loads((ROOT / "contracts/schemas/water_layer.schema.json").read_text(encoding="utf-8"))
+    validate(instance=fc, schema=water_schema)
+    geom = shp_shape(fc["features"][0]["geometry"])
+    assert geom.is_valid
+    # Kiểm tra tọa độ đã chiếu sang EPSG:4326 (kinh độ Hà Nội ~105.8, vĩ độ ~21.1)
+    minx, miny, maxx, maxy = geom.bounds
+    assert 105.0 < minx < 107.0 and 20.0 < miny < 22.0
 
 
 def test_interpolate_population_grid() -> None:

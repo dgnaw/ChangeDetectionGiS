@@ -16,18 +16,23 @@ from src.config import (
 from src.water.fetch_stac import fetch_sentinel2_for_year
 from src.water.mndwi_otsu import run_mndwi_otsu_for_year
 from src.water.preprocess import build_year_composite
+from src.water.validate_jrc import run_jrc_validation
+from src.water.vectorize import run_vectorize_all_years
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI arguments for running fetch, preprocess, water, pop, or full pipeline steps."""
+    """Parse CLI arguments for running fetch, preprocess, vectorize, validate-jrc, water, pop, or all steps."""
     parser = argparse.ArgumentParser(
         description="Run Sentinel-2 surface water & GHSL population GIS pipeline."
     )
     parser.add_argument(
         "--step",
-        choices=["fetch", "preprocess", "water", "pop", "all"],
+        choices=["fetch", "preprocess", "vectorize", "validate-jrc", "water", "pop", "all"],
         default="all",
-        help="Pipeline stage to execute: fetch (Tuần 2), preprocess (Tuần 3 MNDWI+Otsu), water, pop, or all.",
+        help=(
+            "Pipeline stage: fetch (Tuần 2), preprocess (Tuần 3), "
+            "vectorize (Tuần 4 GeoJSON), validate-jrc (Tuần 4 JRC), water (full Tuần 2-4), pop, or all."
+        ),
     )
     parser.add_argument(
         "--aoi",
@@ -105,8 +110,22 @@ def main() -> None:
                 f"mean_mndwi={stats['mean_water_mndwi']:.3f}"
             )
 
-    if args.step in ("water", "all"):
-        print("[gis-pipeline] TODO (Tuần 4): Run vectorize -> validate_jrc.")
+    if args.step in ("vectorize", "water", "all"):
+        run_vectorize_all_years(
+            raw_dir=args.raw_dir,
+            out_dir=args.out,
+            aoi_path=args.aoi,
+            years=args.years,
+        )
+
+    if args.step in ("validate-jrc", "water", "all"):
+        run_jrc_validation(
+            raw_dir=args.raw_dir,
+            out_dir=args.out,
+            aoi_path=args.aoi,
+            years=args.years,
+            overwrite=args.overwrite,
+        )
 
     if args.step in ("pop", "all"):
         print("[gis-pipeline] TODO (Tuần 5): Run clip_population -> spatial_overlay -> grid_to_geojson -> build_timeseries.")
