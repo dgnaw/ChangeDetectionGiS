@@ -16,7 +16,10 @@ if str(PIPELINE_ROOT) not in sys.path:
     sys.path.insert(0, str(PIPELINE_ROOT))
 
 from src.config import CRS_METRIC, CRS_STORAGE
-from src.population.clip_population import interpolate_population_grid
+from src.population.build_timeseries import build_timeseries_summary
+from src.population.clip_population import compute_ghsl_tile_id, interpolate_population_grid
+from src.population.grid_to_geojson import aggregate_100m_to_250m, export_population_grid_geojson
+from src.population.spatial_overlay import compute_pop_in_water_buffer
 from src.water.fetch_stac import (
     build_datetime_range,
     compute_combined_clear_coverage,
@@ -233,6 +236,129 @@ def test_interpolate_population_grid() -> None:
     g2020 = np.array([[150.0, 300.0]], dtype=np.float32)
     g2018 = interpolate_population_grid(g2015, g2020, 2015, 2020, 2018)
     assert np.allclose(g2018, np.array([[130.0, 260.0]], dtype=np.float32))
+
+
+def test_ghsl_tile_id_for_hanoi() -> None:
+    assert compute_ghsl_tile_id(105.855, 21.08) == "R7_C29"
+
+
+def test_aggregate_100m_to_250m_preserves_total_pop() -> None:
+    from rasterio.transform import from_origin
+
+    rng = np.random.default_rng(7)
+    pop_100m = rng.uniform(10.0, 80.0, size=(10, 15)).astype(np.float32)
+    pop_100m[0, 0] = -1.0  # NoData pixel
+    t_100m = from_origin(580000.0, 2340000.0, 100.0, 100.0)
+
+    agg_250m, t_250m = aggregate_100m_to_250m(pop_100m, t_100m)
+    expected_sum = float(pop_100m[pop_100m > 0].sum())
+    assert agg_250m.shape == (4, 6)
+    assert t_250m.a == 250.0 and t_250m.e == -250.0
+    assert np.isclose(float(agg_250m.sum()), expected_sum, rtol=1e-5)
+
+
+def test_spatial_overlay_and_pop_geojson_schema(tmp_path: Path) -> None:
+    import geopandas as gpd
+    import rasterio
+    from rasterio.transform import from_origin
+
+    # Tạo raster dân số 100m kích thước 10x10 (1 km x 1 km), mỗi ô = 20 người -> tổng = 2000 người
+    pop_arr = np.full((10, 10), 20.0, dtype=np.float32)
+    t_100m = from_origin(585000.0, 2335000.0, 100.0, 100.0)
+    pop_tif = tmp_path / "pop_100m_2020.tif"
+    with rasterio.open(
+        pop_tif,
+        "w",
+        driver="GTiff",
+        height=10,
+        width=10,
+        count=1,
+        dtype="float32",
+        crs=CRS_METRIC,
+        transform=t_100m,
+        nodata=-1.0,
+    ) as dst:
+        dst.write(pop_arr, 1)
+
+    # Tạo 1 đa giác nước hiện hữu (stable) ở góc trên trái và 1 đa giác loss ở góc dưới phải (phải bị bỏ qua!)
+    w_gdf = gpd.GeoDataFrame(
+        {
+            "water_id": ["w_1", "w_2"],
+            "year": [2020, 2020],
+            "change_type": ["stable", "loss"],
+            "geometry": [
+                box(585000.0, 2334900.0, 585100.0, 2335000.0),
+                box(585900.0, 2334000.0, 586000.0, 2334100.0),
+            ],
+        },
+        crs=CRS_METRIC,
+    ).to_crs(CRS_STORAGE)
+    water_geojson = tmp_path / "water_2020.geojson"
+    w_gdf.to_file(water_geojson, driver="GeoJSON")
+
+    overlay_res = compute_pop_in_water_buffer(
+        water_geojson=water_geojson,
+        pop_raster_path=pop_tif,
+        buffer_m=300.0,
+    )
+    assert overlay_res["total_pop"] == 2000
+    assert 0 < overlay_res["pop_in_buffer_500m"] < 2000
+
+    out_pop_geojson = tmp_path / "pop_2020.geojson"
+    grid_res = export_population_grid_geojson(
+        raster_path=pop_tif,
+        year=2020,
+        out_geojson=out_pop_geojson,
+        water_geojson=water_geojson,
+    )
+    assert grid_res["cell_count"] == 16  # 1000m / 250m = 4x4 = 16 ô
+    pop_fc = json.loads(out_pop_geojson.read_text(encoding="utf-8"))
+    pop_schema = json.loads((ROOT / "contracts/schemas/pop_layer.schema.json").read_text(encoding="utf-8"))
+    validate(instance=pop_fc, schema=pop_schema)
+
+
+def test_build_timeseries_summary_schema(tmp_path: Path) -> None:
+    (tmp_path / "water_change_metrics.json").write_text(
+        json.dumps(
+            {
+                "aoi_area_km2": 241.35,
+                "years": [
+                    {
+                        "year": 2020,
+                        "water_area_km2": 24.15,
+                        "water_ratio_pct": 10.0,
+                        "water_gain_km2": 1.19,
+                        "water_loss_km2": 2.61,
+                        "otsu_threshold": 0.0955,
+                        "cloud_cover_pct": 0.86,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "jrc_validation_summary.json").write_text(
+        json.dumps({"years": {"2020": {"jrc_iou_score": 0.7485}}}),
+        encoding="utf-8",
+    )
+    (tmp_path / "pop_overlay_metrics.json").write_text(
+        json.dumps(
+            {
+                "years": {
+                    "2020": {
+                        "total_pop": 1050000,
+                        "pop_in_buffer_500m": 310000,
+                        "pop_buffer_ratio_pct": 29.52,
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    out_ts = tmp_path / "timeseries_summary.json"
+    doc = build_timeseries_summary(processed_dir=tmp_path, out_json=out_ts)
+    assert doc["series"][0]["jrc_iou_score"] == 0.7485
+    assert out_ts.exists()
 
 
 def test_mock_contracts_match_schemas() -> None:

@@ -13,6 +13,10 @@ from src.config import (
     MAX_CLOUD_COVER_PCT,
     YEARS,
 )
+from src.population.build_timeseries import build_timeseries_summary
+from src.population.clip_population import run_population_interpolation
+from src.population.grid_to_geojson import run_export_pop_grids_all_years
+from src.population.spatial_overlay import run_spatial_overlay_all_years
 from src.water.fetch_stac import fetch_sentinel2_for_year
 from src.water.mndwi_otsu import run_mndwi_otsu_for_year
 from src.water.preprocess import build_year_composite
@@ -128,7 +132,28 @@ def main() -> None:
         )
 
     if args.step in ("pop", "all"):
-        print("[gis-pipeline] TODO (Tuần 5): Run clip_population -> spatial_overlay -> grid_to_geojson -> build_timeseries.")
+        run_population_interpolation(
+            aoi_path=args.aoi,
+            raw_dir=args.raw_dir,
+            years=args.years,
+            overwrite=args.overwrite,
+        )
+        run_spatial_overlay_all_years(
+            raw_dir=args.raw_dir,
+            out_dir=args.out,
+            aoi_path=args.aoi,
+            years=args.years,
+        )
+        run_export_pop_grids_all_years(
+            raw_dir=args.raw_dir,
+            out_dir=args.out,
+            years=args.years,
+        )
+        build_timeseries_summary(
+            processed_dir=args.out,
+            out_json=args.out / "timeseries_summary.json",
+            aoi_path=args.aoi,
+        )
 
 
 if __name__ == "__main__":

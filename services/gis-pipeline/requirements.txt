@@ -1,5 +1,6 @@
 pystac-client>=0.8.3
 planetary-computer>=1.0.0
+requests>=2.31.0
 rasterio>=1.4.0
 geopandas>=1.0.0
 shapely>=2.0.6
