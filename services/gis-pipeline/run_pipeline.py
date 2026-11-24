@@ -17,6 +17,7 @@ from src.population.build_timeseries import build_timeseries_summary
 from src.population.clip_population import run_population_interpolation
 from src.population.grid_to_geojson import run_export_pop_grids_all_years
 from src.population.spatial_overlay import run_spatial_overlay_all_years
+from src.validate_outputs import audit_processed_outputs, package_handover_bundles
 from src.water.fetch_stac import fetch_sentinel2_for_year
 from src.water.mndwi_otsu import run_mndwi_otsu_for_year
 from src.water.preprocess import build_year_composite
@@ -31,11 +32,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--step",
-        choices=["fetch", "preprocess", "vectorize", "validate-jrc", "water", "pop", "all"],
+        choices=["fetch", "preprocess", "vectorize", "validate-jrc", "water", "pop", "verify", "all"],
         default="all",
         help=(
             "Pipeline stage: fetch (Tuần 2), preprocess (Tuần 3), "
-            "vectorize (Tuần 4 GeoJSON), validate-jrc (Tuần 4 JRC), water (full Tuần 2-4), pop, or all."
+            "vectorize (Tuần 4), validate-jrc (Tuần 4), water, pop (Tuần 5), verify (Tuần 6 QA + zip), or all."
         ),
     )
     parser.add_argument(
@@ -153,6 +154,15 @@ def main() -> None:
             processed_dir=args.out,
             out_json=args.out / "timeseries_summary.json",
             aoi_path=args.aoi,
+        )
+
+    if args.step in ("verify", "all"):
+        audit_processed_outputs(processed_dir=args.out, years=args.years)
+        package_handover_bundles(
+            raw_dir=args.raw_dir,
+            processed_dir=args.out,
+            aoi_path=args.aoi,
+            years=args.years,
         )
 
 

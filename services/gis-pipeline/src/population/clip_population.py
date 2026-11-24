@@ -192,6 +192,9 @@ def run_population_interpolation(
             epoch_rasters[ep] = src.read(1)
             if ref_profile is None:
                 ref_profile = src.profile.copy()
+                ref_profile.pop("blockxsize", None)
+                ref_profile.pop("blockysize", None)
+                ref_profile["tiled"] = False
 
     assert ref_profile is not None
     valid_mask = epoch_rasters[2020] >= 0.0

@@ -20,6 +20,7 @@ from src.population.build_timeseries import build_timeseries_summary
 from src.population.clip_population import compute_ghsl_tile_id, interpolate_population_grid
 from src.population.grid_to_geojson import aggregate_100m_to_250m, export_population_grid_geojson
 from src.population.spatial_overlay import compute_pop_in_water_buffer
+from src.validate_outputs import audit_processed_outputs
 from src.water.fetch_stac import (
     build_datetime_range,
     compute_combined_clear_coverage,
@@ -359,6 +360,20 @@ def test_build_timeseries_summary_schema(tmp_path: Path) -> None:
     doc = build_timeseries_summary(processed_dir=tmp_path, out_json=out_ts)
     assert doc["series"][0]["jrc_iou_score"] == 0.7485
     assert out_ts.exists()
+
+
+def test_processed_outputs_pass_full_audit() -> None:
+    import pytest
+
+    processed_dir = ROOT / "data" / "processed"
+    if not (processed_dir / "timeseries_summary.json").exists():
+        pytest.skip("Real processed outputs not yet generated on this machine.")
+
+    report = audit_processed_outputs(processed_dir=processed_dir)
+    assert report["status"] == "PASSED"
+    assert report["contract_files_verified"] == 11
+    assert report["unique_water_polygons"] > 1000
+    assert report["unique_population_cells"] > 10000
 
 
 def test_mock_contracts_match_schemas() -> None:
