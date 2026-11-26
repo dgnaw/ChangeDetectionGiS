@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -14,7 +14,9 @@ import type { TimeseriesPoint } from "../api/client";
 
 interface StatsChartProps {
   series: TimeseriesPoint[];
-  /** Năm đang chọn trên TimeSlider (vẽ đường tham chiếu). */
+  /** Giá trị thời gian liên tục (2016.0 → 2024.0) để vẽ ReferenceLine đồng bộ. */
+  timelineValue?: number;
+  /** Giữ tương thích ngược nếu chỉ truyền mốc năm rời rạc. */
   selectedYear?: number;
   /** Các năm đang so sánh (Compare Mode). */
   highlightYears?: number[];
@@ -30,13 +32,28 @@ function pctChange(a?: number, b?: number) {
   return ((b - a) / a) * 100;
 }
 
-export const StatsChart: React.FC<StatsChartProps> = ({ series, selectedYear, highlightYears = [] }) => {
-  const data = [...series].sort((a, b) => a.year - b.year);
-  const first = data[0];
-  const last = data[data.length - 1];
-  const waterDelta = pctChange(first?.water_area_km2, last?.water_area_km2);
-  const popDelta = pctChange(first?.pop_in_buffer_500m, last?.pop_in_buffer_500m);
-  const refYears = highlightYears.length ? highlightYears : selectedYear !== undefined ? [selectedYear] : [];
+export const StatsChart: React.FC<StatsChartProps> = ({
+  series,
+  timelineValue,
+  selectedYear,
+  highlightYears = []
+}) => {
+  const { data, ticks, first, last, waterDelta, popDelta } = useMemo(() => {
+    const sorted = [...series].sort((a, b) => a.year - b.year);
+    const f = sorted[0];
+    const l = sorted[sorted.length - 1];
+    return {
+      data: sorted,
+      ticks: sorted.map((d) => d.year),
+      first: f,
+      last: l,
+      waterDelta: pctChange(f?.water_area_km2, l?.water_area_km2),
+      popDelta: pctChange(f?.pop_in_buffer_500m, l?.pop_in_buffer_500m)
+    };
+  }, [series]);
+
+  const activeTime = timelineValue ?? selectedYear;
+  const refValues = highlightYears.length > 0 ? highlightYears : activeTime !== undefined ? [activeTime] : [];
 
   return (
     <div style={{ padding: 12, border: "1px solid #cbd5e1", borderRadius: 8, background: "#fff" }}>
@@ -49,7 +66,14 @@ export const StatsChart: React.FC<StatsChartProps> = ({ series, selectedYear, hi
             <ResponsiveContainer>
               <LineChart data={data} margin={{ top: 8, right: 4, left: -8, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="year" tick={{ fontSize: 11 }} />
+                <XAxis
+                  dataKey="year"
+                  type="number"
+                  domain={[first.year, last.year]}
+                  ticks={ticks}
+                  tick={{ fontSize: 11 }}
+                  padding={{ left: 8, right: 8 }}
+                />
                 <YAxis
                   yAxisId="water"
                   orientation="left"
@@ -76,8 +100,15 @@ export const StatsChart: React.FC<StatsChartProps> = ({ series, selectedYear, hi
                   }
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                {refYears.map((y) => (
-                  <ReferenceLine key={y} x={y} yAxisId="water" stroke="#f59e0b" strokeDasharray="4 2" />
+                {refValues.map((xVal, i) => (
+                  <ReferenceLine
+                    key={highlightYears.length > 0 ? xVal : `cursor-${i}`}
+                    x={xVal}
+                    yAxisId="water"
+                    stroke="#f59e0b"
+                    strokeWidth={highlightYears.length > 0 ? 1.5 : 2}
+                    strokeDasharray="4 2"
+                  />
                 ))}
                 <Line
                   yAxisId="water"
@@ -88,6 +119,7 @@ export const StatsChart: React.FC<StatsChartProps> = ({ series, selectedYear, hi
                   strokeWidth={2.5}
                   dot={{ r: 4 }}
                   activeDot={{ r: 6 }}
+                  isAnimationActive={false}
                 />
                 <Line
                   yAxisId="pop"
@@ -98,6 +130,7 @@ export const StatsChart: React.FC<StatsChartProps> = ({ series, selectedYear, hi
                   strokeWidth={2.5}
                   dot={{ r: 4 }}
                   activeDot={{ r: 6 }}
+                  isAnimationActive={false}
                 />
               </LineChart>
             </ResponsiveContainer>

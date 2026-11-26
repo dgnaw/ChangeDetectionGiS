@@ -180,6 +180,54 @@ async function withFallback<T>(path: string, fallback: () => Promise<T>): Promis
   return data;
 }
 
+// ───────────────────────────── Bộ nhớ đệm & Tải trước (Preload 5 năm) ─────────────────────────────
+
+export interface PreloadProgress {
+  loaded: number;
+  total: number;
+  ready: boolean;
+  error: string | null;
+}
+
+const waterCache = new Map<number, WaterLayer>();
+const waterInFlight = new Map<number, Promise<WaterLayer>>();
+const popFullCache = new Map<number, PopulationLayer>();
+const popFullInFlight = new Map<number, Promise<PopulationLayer>>();
+
+let aoiCache: GeoJSON.FeatureCollection | null = null;
+let aoiInFlight: Promise<GeoJSON.FeatureCollection> | null = null;
+let timeseriesCache: TimeseriesResponse | null = null;
+let timeseriesInFlight: Promise<TimeseriesResponse> | null = null;
+
+const preloadListeners = new Set<(p: PreloadProgress) => void>();
+let preloadPromise: Promise<void> | null = null;
+
+export function getCachedWaterLayer(year: number): WaterLayer | undefined {
+  return waterCache.get(year);
+}
+
+export function getCachedPopulationLayer(year: number): PopulationLayer | undefined {
+  return popFullCache.get(year);
+}
+
+export function isAllLayersCached(): boolean {
+  return VALID_YEARS.every((y) => waterCache.has(y) && popFullCache.has(y));
+}
+
+function getCurrentPreloadProgress(error: string | null = null): PreloadProgress {
+  const total = VALID_YEARS.length * 2;
+  let loaded = 0;
+  for (const y of VALID_YEARS) {
+    if (waterCache.has(y)) loaded += 1;
+    if (popFullCache.has(y)) loaded += 1;
+  }
+  return { loaded, total, ready: loaded === total, error };
+}
+
+function notifyPreload(progress: PreloadProgress) {
+  preloadListeners.forEach((fn) => fn(progress));
+}
+
 // ───────────────────────────── 5 hàm gọi API chuẩn ─────────────────────────────
 
 export function fetchHealth(): Promise<HealthResponse> {
@@ -187,19 +235,137 @@ export function fetchHealth(): Promise<HealthResponse> {
 }
 
 export function fetchAoi(): Promise<GeoJSON.FeatureCollection> {
-  return withFallback("/api/v1/aoi", mock.aoi);
+  if (aoiCache) return Promise.resolve(aoiCache);
+  if (aoiInFlight) return aoiInFlight;
+  aoiInFlight = withFallback("/api/v1/aoi", mock.aoi)
+    .then((data) => {
+      aoiCache = data;
+      return data;
+    })
+    .finally(() => {
+      aoiInFlight = null;
+    });
+  return aoiInFlight;
 }
 
 export function fetchWaterLayer(year: number): Promise<WaterLayer> {
-  return withFallback(`/api/v1/layers/water?year=${year}`, () => mock.water(year));
+  const cached = waterCache.get(year);
+  if (cached) return Promise.resolve(cached);
+
+  const inFlight = waterInFlight.get(year);
+  if (inFlight) return inFlight;
+
+  const req = withFallback(`/api/v1/layers/water?year=${year}`, () => mock.water(year))
+    .then((data) => {
+      waterCache.set(year, data);
+      return data;
+    })
+    .finally(() => {
+      waterInFlight.delete(year);
+    });
+  waterInFlight.set(year, req);
+  return req;
 }
 
-export function fetchPopulationLayer(year: number, onlyBuffer = false): Promise<PopulationLayer> {
-  return withFallback(`/api/v1/layers/population?year=${year}&only_buffer=${onlyBuffer}`, () =>
-    mock.population(year, onlyBuffer)
-  );
+function fetchFullPopulationLayer(year: number): Promise<PopulationLayer> {
+  const cached = popFullCache.get(year);
+  if (cached) return Promise.resolve(cached);
+
+  const inFlight = popFullInFlight.get(year);
+  if (inFlight) return inFlight;
+
+  const req = withFallback(`/api/v1/layers/population?year=${year}&only_buffer=false`, () =>
+    mock.population(year, false)
+  )
+    .then((data) => {
+      popFullCache.set(year, data);
+      return data;
+    })
+    .finally(() => {
+      popFullInFlight.delete(year);
+    });
+  popFullInFlight.set(year, req);
+  return req;
+}
+
+export async function fetchPopulationLayer(year: number, onlyBuffer = false): Promise<PopulationLayer> {
+  const full = await fetchFullPopulationLayer(year);
+  if (!onlyBuffer) return full;
+  return {
+    ...full,
+    features: full.features.filter((f) => f.properties.in_water_buffer_500m === true)
+  };
 }
 
 export function fetchTimeseries(): Promise<TimeseriesResponse> {
-  return withFallback("/api/v1/analytics/timeseries", mock.timeseries);
+  if (timeseriesCache) return Promise.resolve(timeseriesCache);
+  if (timeseriesInFlight) return timeseriesInFlight;
+  timeseriesInFlight = withFallback("/api/v1/analytics/timeseries", mock.timeseries)
+    .then((data) => {
+      timeseriesCache = data;
+      return data;
+    })
+    .finally(() => {
+      timeseriesInFlight = null;
+    });
+  return timeseriesInFlight;
+}
+
+/**
+ * Tải trước & cache toàn bộ GeoJSON của 5 mốc năm (water + population)
+ * để phát timelapse 60 FPS không bị khựng hoặc gọi lại API.
+ */
+export async function preloadAllLayers(onProgress?: (p: PreloadProgress) => void): Promise<void> {
+  if (onProgress) {
+    preloadListeners.add(onProgress);
+    onProgress(getCurrentPreloadProgress());
+  }
+
+  if (isAllLayersCached()) {
+    notifyPreload(getCurrentPreloadProgress());
+    return;
+  }
+
+  if (preloadPromise) {
+    return preloadPromise;
+  }
+
+  preloadPromise = (async () => {
+    try {
+      // Thăm dò health trước một lần nếu chưa rõ nguồn dữ liệu,
+      // giúp fallback sang mock ngay lập tức mà không chờ 10 timeout song song.
+      if (currentSource === "unknown") {
+        await fetchHealth().catch(() => undefined);
+      }
+
+      notifyPreload(getCurrentPreloadProgress());
+
+      const tasks: Array<Promise<unknown>> = [];
+      for (const y of VALID_YEARS) {
+        tasks.push(
+          fetchWaterLayer(y).then((res) => {
+            notifyPreload(getCurrentPreloadProgress());
+            return res;
+          })
+        );
+        tasks.push(
+          fetchFullPopulationLayer(y).then((res) => {
+            notifyPreload(getCurrentPreloadProgress());
+            return res;
+          })
+        );
+      }
+
+      await Promise.all(tasks);
+      notifyPreload(getCurrentPreloadProgress());
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      notifyPreload(getCurrentPreloadProgress(msg));
+      throw err;
+    } finally {
+      preloadPromise = null;
+    }
+  })();
+
+  return preloadPromise;
 }

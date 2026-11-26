@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { MapCanvas } from "./components/MapCanvas";
 import { TimeSlider } from "./components/TimeSlider";
 import { CompareToggle } from "./components/CompareToggle";
@@ -9,11 +9,14 @@ import {
   fetchHealth,
   fetchTimeseries,
   getDataSource,
+  preloadAllLayers,
   subscribeDataSource,
   type DataSource,
+  type PreloadProgress,
   type TimeseriesPoint,
   type TimeseriesResponse
 } from "./api/client";
+import { formatTimelineLabel, getTimelineBracket, interpolateTimeseries } from "./utils/timeline";
 
 const YEARS: number[] = [...VALID_YEARS];
 
@@ -28,7 +31,15 @@ const SOURCE_BADGE: Record<DataSource, { text: string; bg: string; title: string
 };
 
 export default function App() {
-  const [year, setYear] = useState<number>(2020);
+  const [timelineValue, setTimelineValue] = useState<number>(2016);
+  const [playing, setPlaying] = useState<boolean>(false);
+  const [preloadStatus, setPreloadStatus] = useState<PreloadProgress>({
+    loaded: 0,
+    total: YEARS.length * 2,
+    ready: false,
+    error: null
+  });
+
   const [showWater, setShowWater] = useState<boolean>(true);
   const [showPopulation, setShowPopulation] = useState<boolean>(true);
   const [onlyBuffer, setOnlyBuffer] = useState<boolean>(false);
@@ -41,15 +52,28 @@ export default function App() {
 
   useEffect(() => subscribeDataSource(setSource), []);
 
+  const triggerPreload = useCallback(() => {
+    preloadAllLayers(setPreloadStatus).catch((err) =>
+      console.error("Không tải trước được toàn bộ 5 năm dữ liệu", err)
+    );
+  }, []);
+
   useEffect(() => {
     fetchHealth().catch(() => undefined);
     fetchTimeseries()
       .then(setTimeseries)
       .catch((err) => console.error("Không tải được chuỗi thời gian", err));
+    triggerPreload();
+  }, [triggerPreload]);
+
+  const handleToggleCompare = useCallback((enabled: boolean) => {
+    if (enabled) setPlaying(false);
+    setCompareMode(enabled);
   }, []);
 
   const series: TimeseriesPoint[] = timeseries?.series ?? [];
-  const current = series.find((s) => s.year === year);
+  const current = useMemo(() => interpolateTimeseries(series, timelineValue), [series, timelineValue]);
+  const bracket = useMemo(() => getTimelineBracket(timelineValue, YEARS), [timelineValue]);
   const badge = SOURCE_BADGE[source];
 
   return (
@@ -77,7 +101,16 @@ export default function App() {
             {badge.text}
           </span>
         </div>
-        <TimeSlider years={YEARS} selectedYear={year} onChange={setYear} disabled={compareMode} />
+        <TimeSlider
+          years={YEARS}
+          timelineValue={timelineValue}
+          onChange={setTimelineValue}
+          playing={playing}
+          onPlayingChange={setPlaying}
+          disabled={compareMode}
+          preloadStatus={preloadStatus}
+          onRequestPreload={triggerPreload}
+        />
       </header>
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
@@ -107,37 +140,72 @@ export default function App() {
           />
           <CompareToggle
             enabled={compareMode}
-            onToggle={setCompareMode}
+            onToggle={handleToggleCompare}
             years={YEARS}
             compareYears={compareYears}
             onChangeYears={setCompareYears}
           />
 
           {current && !compareMode && (
-            <div style={{ fontSize: 13, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-              <Kpi label="Mặt nước" value={`${current.water_area_km2} km²`} sub={`${current.water_ratio_pct}% AOI`} />
-              <Kpi
-                label="Dân số vùng đệm"
-                value={current.pop_in_buffer_500m.toLocaleString("vi-VN")}
-                sub={`${current.pop_buffer_ratio_pct}% tổng dân`}
-              />
-              <Kpi label="Nước tăng / mất" value={`+${current.water_gain_km2} / −${current.water_loss_km2}`} sub="km²" />
-              <Kpi
-                label="Otsu · IoU JRC"
-                value={`${current.otsu_threshold}`}
-                sub={current.jrc_iou_score !== null ? `IoU ${current.jrc_iou_score}` : "IoU: n/a"}
-              />
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
+                <strong style={{ color: "#0f172a", fontVariantNumeric: "tabular-nums" }}>
+                  {formatTimelineLabel(timelineValue)}
+                </strong>
+                {!bracket.isExactMilestone && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      padding: "1px 6px",
+                      borderRadius: 999,
+                      background: "#e0f2fe",
+                      color: "#0369a1",
+                      fontWeight: 600
+                    }}
+                  >
+                    nội suy
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 13, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                <Kpi
+                  label="Mặt nước"
+                  value={`${current.water_area_km2.toFixed(2)} km²`}
+                  sub={`${current.water_ratio_pct.toFixed(2)}% AOI`}
+                />
+                <Kpi
+                  label="Dân số vùng đệm"
+                  value={Math.round(current.pop_in_buffer_500m).toLocaleString("vi-VN")}
+                  sub={`${current.pop_buffer_ratio_pct.toFixed(2)}% tổng dân`}
+                />
+                <Kpi
+                  label="Nước tăng / mất"
+                  value={`+${current.water_gain_km2.toFixed(2)} / −${current.water_loss_km2.toFixed(2)}`}
+                  sub="km²"
+                />
+                <Kpi
+                  label="Otsu · IoU JRC"
+                  value={current.otsu_threshold.toFixed(3)}
+                  sub={current.jrc_iou_score !== null ? `IoU ${current.jrc_iou_score.toFixed(2)}` : "IoU: n/a"}
+                />
+              </div>
             </div>
           )}
 
-          <StatsChart series={series} selectedYear={year} highlightYears={compareMode ? compareYears : []} />
+          <StatsChart
+            series={series}
+            timelineValue={timelineValue}
+            highlightYears={compareMode ? compareYears : []}
+          />
           <small style={{ color: "#64748b" }}>
             CRS hiển thị: EPSG:4326 · Tính toán: EPSG:32648 · Click vào bản đồ để xem thuộc tính.
           </small>
         </aside>
 
         <MapCanvas
-          year={year}
+          timelineValue={timelineValue}
+          playing={playing}
+          preloadReady={preloadStatus.ready}
           showWater={showWater}
           showPopulation={showPopulation}
           onlyBuffer={onlyBuffer}
@@ -154,7 +222,7 @@ export default function App() {
 const Kpi: React.FC<{ label: string; value: string; sub: string }> = ({ label, value, sub }) => (
   <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6, padding: "6px 8px" }}>
     <div style={{ color: "#64748b", fontSize: 11 }}>{label}</div>
-    <div style={{ fontWeight: 700 }}>{value}</div>
-    <div style={{ color: "#94a3b8", fontSize: 11 }}>{sub}</div>
+    <div style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{value}</div>
+    <div style={{ color: "#94a3b8", fontSize: 11, fontVariantNumeric: "tabular-nums" }}>{sub}</div>
   </div>
 );
